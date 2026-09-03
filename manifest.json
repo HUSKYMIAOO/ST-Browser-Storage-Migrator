@@ -1,0 +1,12 @@
+{
+  "display_name": "浏览器存档迁移 / Browser Storage Migrator",
+  "loading_order": 99,
+  "requires": [],
+  "optional": [],
+  "js": "index.js",
+  "css": "style.css",
+  "author": "HUSKYMIAOO",
+  "version": "1.0.1",
+  "auto_update": true,
+  "homePage": "https://github.com/HUSKYMIAOO/ST-Browser-Storage-Migrator"
+}
