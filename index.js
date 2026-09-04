@@ -144,7 +144,7 @@
     // Safari/older browser fallback: ask user for names.
     const raw = prompt(
       '当前浏览器不能自动枚举 IndexedDB。\n请输入要备份的数据库名，用英文逗号分隔。\n\n' +
-      '如果当前没有需要迁移的 IndexedDB，可以直接取消。'
+      '例如：ImperialCheckpoint,yuzuki_memory'
     );
     if (!raw) return [];
     return raw.split(',').map(x => x.trim()).filter(Boolean).map(name => ({ name, version: 1 }));
@@ -237,9 +237,6 @@
     }
 
     const dbs = await listDatabases();
-    if (dbs.length === 0) {
-      setStatus('未发现需要导出的 IndexedDB，将继续备份其他浏览器存储。');
-    }
     for (let i = 0; i < dbs.length; i++) {
       setStatus(`正在导出 IndexedDB ${i + 1}/${dbs.length}：${dbs[i].name}`);
       backup.indexedDB.push(await exportDatabase(dbs[i]));
@@ -441,112 +438,40 @@
 
   // ---------- UI ----------
   const root = document.createElement('div');
-  root.id = TOOL_ID;
-  root.style.cssText = `
-    position: fixed;
-    right: 14px;
-    bottom: 80px;
-    z-index: 2147483647;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  `;
+  root.id = 'st-browser-storage-migrator';
+  root.style.cssText = `position:fixed;right:14px;bottom:84px;z-index:2147483647;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;user-select:none;-webkit-user-select:none;`;
 
   const btn = document.createElement('button');
-  btn.textContent = '⇄ 存档迁移';
-  btn.style.cssText = `
-    border: 1px solid rgba(255,255,255,.25);
-    border-radius: 10px;
-    padding: 9px 12px;
-    background: rgba(20,20,24,.92);
-    color: #fff;
-    font-size: 14px;
-    box-shadow: 0 6px 20px rgba(0,0,0,.35);
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-  `;
+  btn.type='button'; btn.title='浏览器存档迁移'; btn.setAttribute('aria-label','浏览器存档迁移'); btn.textContent='⇄';
+  btn.style.cssText = `width:46px;height:46px;padding:0;border:1px solid rgba(255,255,255,.55);border-radius:50%;background:rgba(18,18,22,.94);color:#fff;font-size:25px;line-height:44px;font-weight:700;text-align:center;box-shadow:0 5px 18px rgba(0,0,0,.42);cursor:pointer;touch-action:none;-webkit-tap-highlight-color:transparent;`;
 
-  const panel = document.createElement('div');
-  panel.style.cssText = `
-    display: none;
-    width: min(320px, calc(100vw - 28px));
-    margin-bottom: 8px;
-    padding: 12px;
-    border-radius: 12px;
-    background: rgba(18,18,22,.97);
-    color: #fff;
-    box-shadow: 0 8px 30px rgba(0,0,0,.45);
-    border: 1px solid rgba(255,255,255,.16);
-  `;
-
-  panel.innerHTML = `
-    <div style="font-weight:700;font-size:15px;margin-bottom:8px;">浏览器存档迁移</div>
-    <div style="font-size:12px;opacity:.78;line-height:1.45;margin-bottom:10px;">
-      迁移 LocalStorage、SessionStorage 和当前站点的全部 IndexedDB。<br>
-      不包含浏览器 Extension storage。
-    </div>
+  const panel=document.createElement('div');
+  panel.style.cssText=`display:none;width:min(320px,calc(100vw - 28px));margin-bottom:8px;padding:13px;border-radius:12px;background:rgba(18,18,22,.98);color:#fff;box-shadow:0 8px 30px rgba(0,0,0,.48);border:1px solid rgba(255,255,255,.24);user-select:text;-webkit-user-select:text;`;
+  panel.innerHTML=`
+    <div style="font-weight:700;font-size:15px;margin-bottom:8px;color:#fff;">浏览器存档迁移</div>
+    <div style="font-size:12px;color:#eee;line-height:1.5;margin-bottom:11px;">迁移 LocalStorage、SessionStorage 和当前站点的全部 IndexedDB。</div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      <button data-act="export" style="flex:1;min-width:120px;padding:9px;border-radius:8px;border:0;cursor:pointer;">📤 导出备份</button>
-      <button data-act="import" style="flex:1;min-width:120px;padding:9px;border-radius:8px;border:0;cursor:pointer;">📥 导入备份</button>
+      <button data-act="export" type="button" style="flex:1;min-width:120px;padding:10px 8px;border-radius:8px;border:1px solid #999;background:#fff;color:#111;font-weight:700;font-size:14px;cursor:pointer;">📤 导出备份</button>
+      <button data-act="import" type="button" style="flex:1;min-width:120px;padding:10px 8px;border-radius:8px;border:1px solid #999;background:#fff;color:#111;font-weight:700;font-size:14px;cursor:pointer;">📥 导入备份</button>
     </div>
-    <div data-status style="font-size:12px;opacity:.8;margin-top:10px;word-break:break-word;">当前：${location.origin}</div>
-  `;
+    <div data-status style="font-size:12px;color:#eee;margin-top:10px;word-break:break-word;">当前：${location.origin}</div>
+    <div data-close style="text-align:right;margin-top:7px;"><button type="button" style="border:0;background:transparent;color:#fff;font-size:12px;text-decoration:underline;cursor:pointer;padding:3px 0;">关闭面板</button></div>`;
 
-  const status = panel.querySelector('[data-status]');
-  const setStatus = text => {
-    status.textContent = text;
-    console.log('[ST Storage Migrator]', text);
-  };
+  const status=panel.querySelector('[data-status]');
+  const setStatus=text=>{status.textContent=text;console.log('[ST Storage Migrator]',text);};
+  const fileInput=document.createElement('input'); fileInput.type='file'; fileInput.accept='.json,application/json'; fileInput.style.display='none';
 
-  const fileInput = document.createElement('input');
-  fileInput.type = 'file';
-  fileInput.accept = '.json,application/json';
-  fileInput.style.display = 'none';
-
-  btn.addEventListener('click', () => {
-    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-  });
-
-  panel.querySelector('[data-act="export"]').addEventListener('click', async () => {
-    try {
-      setStatus('开始导出…');
-      const backup = await makeBackup(setStatus);
-      setStatus('备份已生成，正在保存/分享…');
-      await saveBackupFile(backup);
-      setStatus(`✅ 导出完成：${backup.indexedDB.length} 个 IndexedDB 数据库`);
-    } catch (e) {
-      console.error(e);
-      setStatus(`❌ 导出失败：${e?.message || e}`);
-      alert(`导出失败：\n${e?.message || e}`);
-    }
-  });
-
-  panel.querySelector('[data-act="import"]').addEventListener('click', () => {
-    fileInput.value = '';
-    fileInput.click();
-  });
-
-  fileInput.addEventListener('change', async () => {
-    const file = fileInput.files?.[0];
-    if (!file) return;
-
-    try {
-      setStatus('读取备份文件…');
-      const backup = JSON.parse(await file.text());
-      await restoreBackup(backup, setStatus);
-      setStatus('✅ 导入完成。请完全刷新/重新打开 SillyTavern 页面。');
-      alert('导入完成。\n\n请关闭当前 SillyTavern 页面并重新打开，让重前端脚本重新读取存档。');
-    } catch (e) {
-      console.error(e);
-      setStatus(`❌ 导入失败：${e?.message || e}`);
-      if (!String(e?.message || e).includes('用户取消')) {
-        alert(`导入失败：\n${e?.message || e}`);
-      }
-    }
-  });
-
-  root.appendChild(panel);
-  root.appendChild(btn);
-  root.appendChild(fileInput);
-  document.body.appendChild(root);
-
-  console.log('[ST Storage Migrator] loaded');
+  let dragging=false,moved=false,suppressClick=false,startX=0,startY=0,startLeft=0,startTop=0;
+  function pos(){const r=root.getBoundingClientRect();return {left:r.left,top:r.top};}
+  function beginDrag(x,y){const p=pos();startX=x;startY=y;startLeft=p.left;startTop=p.top;moved=false;dragging=true;root.style.right='auto';root.style.bottom='auto';root.style.left=`${startLeft}px`;root.style.top=`${startTop}px`;}
+  function moveDrag(x,y){if(!dragging)return;const dx=x-startX,dy=y-startY;if(Math.abs(dx)+Math.abs(dy)>6)moved=true;const m=6,maxL=Math.max(m,innerWidth-root.offsetWidth-m),maxT=Math.max(m,innerHeight-root.offsetHeight-m);root.style.left=`${Math.min(maxL,Math.max(m,startLeft+dx))}px`;root.style.top=`${Math.min(maxT,Math.max(m,startTop+dy))}px`;}
+  function endDrag(){if(!dragging)return;dragging=false;if(moved){suppressClick=true;setTimeout(()=>suppressClick=false,150);}}
+  btn.addEventListener('pointerdown',e=>{if(e.button!==undefined&&e.button!==0)return;try{btn.setPointerCapture(e.pointerId);}catch(_){}beginDrag(e.clientX,e.clientY);});
+  btn.addEventListener('pointermove',e=>moveDrag(e.clientX,e.clientY)); btn.addEventListener('pointerup',endDrag); btn.addEventListener('pointercancel',endDrag);
+  btn.addEventListener('click',()=>{if(suppressClick||moved)return;panel.style.display=panel.style.display==='none'?'block':'none';});
+  panel.querySelector('[data-close] button').addEventListener('click',()=>panel.style.display='none');
+  panel.querySelector('[data-act="export"]').addEventListener('click',async()=>{try{setStatus('正在导出…');const backup=await makeBackup(setStatus);setStatus('备份已生成，正在保存/分享…');await saveBackupFile(backup);setStatus(`✅ 导出完成：${backup.indexedDB.length} 个 IndexedDB 数据库`);}catch(e){console.error(e);setStatus(`❌ 导出失败：${e?.message||e}`);alert(`导出失败：\n${e?.message||e}`);}});
+  panel.querySelector('[data-act="import"]').addEventListener('click',()=>{fileInput.value='';fileInput.click();});
+  fileInput.addEventListener('change',async()=>{const file=fileInput.files?.[0];if(!file)return;try{setStatus('读取备份文件…');const backup=JSON.parse(await file.text());await restoreBackup(backup,setStatus);setStatus('✅ 导入完成。请完全刷新/重新打开 SillyTavern 页面。');alert('导入完成。\n\n请关闭当前 SillyTavern 页面并重新打开，让重前端脚本重新读取存档。');}catch(e){console.error(e);setStatus(`❌ 导入失败：${e?.message||e}`);if(!String(e?.message||e).includes('用户取消'))alert(`导入失败：\n${e?.message||e}`);}});
+  root.appendChild(panel);root.appendChild(btn);root.appendChild(fileInput);document.body.appendChild(root);console.log('[ST Storage Migrator] loaded v1.0.2');
 })();

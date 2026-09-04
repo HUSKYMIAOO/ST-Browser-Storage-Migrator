@@ -1,6 +1,1 @@
-/* ST Browser Storage Migrator
-   Main UI styles are injected by index.js so the extension remains self-contained.
-   This file is intentionally minimal and keeps compatibility with SillyTavern themes. */
-#st-browser-storage-migrator button {
-  touch-action: manipulation;
-}
+#st-browser-storage-migrator button { touch-action: manipulation; }
